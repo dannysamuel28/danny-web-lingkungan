@@ -1,0 +1,422 @@
+<!-- Aplikasi Database OMK Lingkungan Arcadius 1 -->
+<!-- Dibuat dengan HTML, Tailwind CSS, dan JavaScript menggunakan Firestore -->
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database OMK Lingkungan Arcadius 1</title>
+    <!-- Memuat Tailwind CSS untuk styling yang cepat dan responsif -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Menggunakan font Inter, default dari Tailwind */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Latar belakang gelap */
+            color: #e2e8f0; /* Teks terang */
+        }
+        /* Style untuk modal kustom konfirmasi */
+        .custom-modal {
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto p-4 md:p-8 min-h-screen">
+        <!-- Header Aplikasi -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-bold mb-2 text-white">Database OMK Lingkungan Arcadius 1</h1>
+            <p class="text-gray-400">Paroki St. Albertus Agung Harapan Indah</p>
+        </header>
+
+        <!-- Bagian Halaman Utama (Formulir) -->
+        <div id="formSection" class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8">
+            <h2 class="text-xl md:text-2xl font-semibold mb-4 text-white">Tambah Anggota OMK Baru</h2>
+            <form id="addMemberForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col">
+                    <label for="nama" class="mb-1 text-sm font-medium text-gray-300">Nama Lengkap</label>
+                    <input type="text" id="nama" placeholder="Nama Lengkap" required class="p-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex flex-col">
+                    <label for="noTelp" class="mb-1 text-sm font-medium text-gray-300">Nomor Telepon</label>
+                    <input type="tel" id="noTelp" placeholder="08xxxxxxxxxx" required class="p-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex flex-col">
+                    <label for="alamat" class="mb-1 text-sm font-medium text-gray-300">Alamat</label>
+                    <input type="text" id="alamat" placeholder="Alamat lengkap" required class="p-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex flex-col">
+                    <label for="tglLahir" class="mb-1 text-sm font-medium text-gray-300">Tanggal Lahir</label>
+                    <input type="date" id="tglLahir" required class="p-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <!-- Menambahkan field keanggotaan -->
+                <div class="flex flex-col">
+                    <label for="keanggotaan" class="mb-1 text-sm font-medium text-gray-300">Status Keanggotaan</label>
+                    <select id="keanggotaan" required class="p-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="Aktif">Aktif</option>
+                        <option value="Tidak Aktif">Tidak Aktif</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2 flex justify-end items-center mt-4">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg transition duration-300 ease-in-out transform hover:scale-105">
+                        Tambah Anggota
+                    </button>
+                    <button type="button" id="showListBtn" class="ml-4 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg transition duration-300 ease-in-out">
+                        Lihat Daftar Anggota
+                    </button>
+                </div>
+            </form>
+            <!-- Area pesan loading/sukses -->
+            <div id="messageArea" class="mt-4 text-center text-sm font-medium"></div>
+        </div>
+
+        <!-- Bagian Halaman Daftar Anggota (Sub-web) -->
+        <div id="listSection" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl md:text-2xl font-semibold text-white">Daftar Anggota OMK</h2>
+                <button type="button" id="showFormBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg transition duration-300 ease-in-out">
+                    Tambah Anggota Baru
+                </button>
+            </div>
+            <div id="loadingIndicator" class="text-center text-gray-500 mt-8" style="display: none;">
+                Memuat data...
+            </div>
+            <ul id="membersList" class="space-y-4">
+                <!-- Data anggota akan dimuat di sini oleh JavaScript -->
+            </ul>
+        </div>
+
+        <!-- Modal untuk Edit/Hapus Anggota -->
+        <div id="editModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-gray-800 rounded-lg p-6 w-full max-w-lg shadow-2xl">
+                <h3 id="modalTitle" class="text-2xl font-semibold mb-4 text-white">Edit Anggota</h3>
+                <form id="editMemberForm" class="grid grid-cols-1 gap-4">
+                    <input type="hidden" id="editMemberId">
+                    <div class="flex flex-col">
+                        <label for="editNama" class="mb-1 text-sm font-medium text-gray-300">Nama Lengkap</label>
+                        <input type="text" id="editNama" required class="p-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="editNoTelp" class="mb-1 text-sm font-medium text-gray-300">Nomor Telepon</label>
+                        <input type="tel" id="editNoTelp" required class="p-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="editAlamat" class="mb-1 text-sm font-medium text-gray-300">Alamat</label>
+                        <input type="text" id="editAlamat" required class="p-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="editTglLahir" class="mb-1 text-sm font-medium text-gray-300">Tanggal Lahir</label>
+                        <input type="date" id="editTglLahir" required class="p-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <!-- Menambahkan field keanggotaan pada modal edit -->
+                    <div class="flex flex-col">
+                        <label for="editKeanggotaan" class="mb-1 text-sm font-medium text-gray-300">Status Keanggotaan</label>
+                        <select id="editKeanggotaan" required class="p-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="Aktif">Aktif</option>
+                            <option value="Tidak Aktif">Tidak Aktif</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-between mt-4">
+                        <button type="button" id="closeModalBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                            Batal
+                        </button>
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                            Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Konfirmasi Hapus Kustom -->
+        <div id="confirmModal" class="custom-modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-gray-800 rounded-lg p-6 w-full max-w-sm shadow-2xl">
+                <p class="text-white text-lg mb-4">Apakah Anda yakin ingin menghapus anggota ini?</p>
+                <div class="flex justify-end space-x-4">
+                    <button id="cancelDeleteBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                        Batal
+                    </button>
+                    <button id="confirmDeleteBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                        Hapus
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer dengan hak cipta -->
+    <footer class="text-center text-gray-500 text-sm mt-8 p-4">
+        <p>&copy; 2025 OMK Lingkungan Arcadius 1, All rights reserved.</p>
+    </footer>
+
+    <!-- Memuat Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Variabel global yang disediakan oleh environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Inisialisasi Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Referensi elemen-elemen DOM
+        const addMemberForm = document.getElementById('addMemberForm');
+        const membersList = document.getElementById('membersList');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const messageArea = document.getElementById('messageArea');
+
+        const editModal = document.getElementById('editModal');
+        const editMemberForm = document.getElementById('editMemberForm');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+
+        const formSection = document.getElementById('formSection');
+        const listSection = document.getElementById('listSection');
+        const showListBtn = document.getElementById('showListBtn');
+        const showFormBtn = document.getElementById('showFormBtn');
+
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+
+        let isAuthReady = false;
+        let memberIdToDelete = null;
+
+        // Fungsi untuk menampilkan/menyembunyikan bagian halaman
+        function showPage(pageId) {
+            if (pageId === 'form') {
+                formSection.classList.remove('hidden');
+                listSection.classList.add('hidden');
+            } else if (pageId === 'list') {
+                formSection.classList.add('hidden');
+                listSection.classList.remove('hidden');
+            }
+        }
+
+        // Fungsi untuk menampilkan pesan (sukses/error)
+        function showMessage(message, isError = false) {
+            messageArea.textContent = message;
+            messageArea.className = `mt-4 text-center text-sm font-medium ${isError ? 'text-red-500' : 'text-green-500'}`;
+            setTimeout(() => {
+                messageArea.textContent = '';
+            }, 3000);
+        }
+
+        // Otentikasi pengguna
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                isAuthReady = true;
+                const userId = user.uid;
+                console.log("Pengguna terautentikasi:", userId);
+                fetchMembers();
+            } else {
+                console.log("Tidak ada pengguna terautentikasi, mencoba masuk...");
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Gagal melakukan autentikasi:", error);
+                    showMessage("Gagal melakukan autentikasi. Silakan coba lagi.", true);
+                }
+            }
+        });
+
+        // Event listener untuk menambahkan anggota baru
+        addMemberForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!isAuthReady) {
+                showMessage("Autentikasi belum siap. Silakan tunggu sebentar.", true);
+                return;
+            }
+
+            const nama = document.getElementById('nama').value;
+            const noTelp = document.getElementById('noTelp').value;
+            const alamat = document.getElementById('alamat').value;
+            const tglLahir = document.getElementById('tglLahir').value;
+            const keanggotaan = document.getElementById('keanggotaan').value;
+
+            if (nama && noTelp && alamat && tglLahir && keanggotaan) {
+                try {
+                    // Path koleksi publik untuk data komunitas
+                    const collectionPath = `artifacts/${appId}/public/data/omk_arcadius_1`;
+                    await addDoc(collection(db, collectionPath), {
+                        nama: nama,
+                        noTelp: noTelp,
+                        alamat: alamat,
+                        tglLahir: tglLahir,
+                        keanggotaan: keanggotaan,
+                        createdAt: new Date()
+                    });
+                    addMemberForm.reset();
+                    showMessage("Anggota berhasil ditambahkan!");
+                } catch (error) {
+                    console.error("Error menambahkan dokumen: ", error);
+                    showMessage("Gagal menambahkan anggota. Silakan coba lagi.", true);
+                }
+            } else {
+                showMessage("Harap isi semua kolom.", true);
+            }
+        });
+
+        // Event listener untuk mengedit anggota
+        editMemberForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const memberId = document.getElementById('editMemberId').value;
+            const editNama = document.getElementById('editNama').value;
+            const editNoTelp = document.getElementById('editNoTelp').value;
+            const editAlamat = document.getElementById('editAlamat').value;
+            const editTglLahir = document.getElementById('editTglLahir').value;
+            const editKeanggotaan = document.getElementById('editKeanggotaan').value;
+
+            if (memberId && editNama && editNoTelp && editAlamat && editTglLahir && editKeanggotaan) {
+                try {
+                    const docRef = doc(db, `artifacts/${appId}/public/data/omk_arcadius_1`, memberId);
+                    await updateDoc(docRef, {
+                        nama: editNama,
+                        noTelp: editNoTelp,
+                        alamat: editAlamat,
+                        tglLahir: editTglLahir,
+                        keanggotaan: editKeanggotaan,
+                    });
+                    editModal.classList.add('hidden');
+                    showMessage("Anggota berhasil diperbarui!");
+                } catch (error) {
+                    console.error("Error memperbarui dokumen: ", error);
+                    showMessage("Gagal memperbarui anggota. Silakan coba lagi.", true);
+                }
+            } else {
+                showMessage("Harap isi semua kolom.", true);
+            }
+        });
+
+        // Fungsi untuk menghapus anggota
+        async function deleteMember() {
+            if (!memberIdToDelete) return;
+            try {
+                const docRef = doc(db, `artifacts/${appId}/public/data/omk_arcadius_1`, memberIdToDelete);
+                await deleteDoc(docRef);
+                showMessage("Anggota berhasil dihapus!");
+            } catch (error) {
+                console.error("Error menghapus dokumen: ", error);
+                showMessage("Gagal menghapus anggota. Silakan coba lagi.", true);
+            } finally {
+                confirmModal.classList.add('hidden');
+                memberIdToDelete = null;
+            }
+        }
+
+        // Fungsi untuk menampilkan daftar anggota dari Firestore secara real-time
+        function fetchMembers() {
+            loadingIndicator.style.display = 'block';
+            const q = query(collection(db, `artifacts/${appId}/public/data/omk_arcadius_1`));
+
+            onSnapshot(q, (snapshot) => {
+                const members = [];
+                snapshot.forEach((doc) => {
+                    members.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Mengurutkan data berdasarkan nama
+                members.sort((a, b) => a.nama.localeCompare(b.nama));
+
+                loadingIndicator.style.display = 'none';
+                displayMembers(members);
+            }, (error) => {
+                console.error("Error fetching documents: ", error);
+                loadingIndicator.style.display = 'none';
+                showMessage("Gagal memuat data. Periksa koneksi internet Anda.", true);
+            });
+        }
+
+        // Fungsi untuk menampilkan data anggota ke DOM
+        function displayMembers(members) {
+            membersList.innerHTML = '';
+            if (members.length === 0) {
+                membersList.innerHTML = '<li class="text-center text-gray-500 mt-4">Belum ada anggota OMK yang terdaftar.</li>';
+                return;
+            }
+
+            members.forEach(member => {
+                const badgeColor = member.keanggotaan === 'Aktif' ? 'bg-green-600' : 'bg-red-600';
+                const memberCard = document.createElement('li');
+                memberCard.className = 'bg-gray-800 rounded-lg p-4 shadow-md flex items-center justify-between transition-transform duration-300 transform hover:scale-[1.02]';
+                memberCard.innerHTML = `
+                    <div class="flex-grow">
+                        <h3 class="text-lg md:text-xl font-bold text-blue-400">${member.nama}</h3>
+                        <p class="text-gray-300 text-xs md:text-sm">Telp: ${member.noTelp} | Alamat: ${member.alamat}</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-1 text-white text-xs font-semibold rounded-full ${badgeColor}">
+                            ${member.keanggotaan}
+                        </span>
+                        <button class="editBtn bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-1 px-3 rounded-lg text-xs md:text-sm transition duration-300" data-id="${member.id}">
+                            Edit
+                        </button>
+                        <button class="deleteBtn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-lg text-xs md:text-sm transition duration-300" data-id="${member.id}">
+                            Hapus
+                        </button>
+                    </div>
+                `;
+                membersList.appendChild(memberCard);
+            });
+
+            // Menambahkan event listener ke tombol edit dan hapus
+            document.querySelectorAll('.editBtn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const memberId = e.target.dataset.id;
+                    const memberToEdit = members.find(m => m.id === memberId);
+                    if (memberToEdit) {
+                        // Mengisi form modal dengan data yang akan diedit
+                        document.getElementById('editMemberId').value = memberToEdit.id;
+                        document.getElementById('editNama').value = memberToEdit.nama;
+                        document.getElementById('editNoTelp').value = memberToEdit.noTelp;
+                        document.getElementById('editAlamat').value = memberToEdit.alamat;
+                        document.getElementById('editTglLahir').value = memberToEdit.tglLahir;
+                        document.getElementById('editKeanggotaan').value = memberToEdit.keanggotaan;
+                        editModal.classList.remove('hidden');
+                    }
+                });
+            });
+
+            document.querySelectorAll('.deleteBtn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    memberIdToDelete = e.target.dataset.id;
+                    confirmModal.classList.remove('hidden');
+                });
+            });
+        }
+
+        // Event listener untuk menutup modal edit
+        closeModalBtn.addEventListener('click', () => {
+            editModal.classList.add('hidden');
+        });
+
+        // Event listener untuk modal konfirmasi hapus
+        cancelDeleteBtn.addEventListener('click', () => {
+            confirmModal.classList.add('hidden');
+            memberIdToDelete = null;
+        });
+
+        confirmDeleteBtn.addEventListener('click', deleteMember);
+
+        // Event listener untuk navigasi antar halaman
+        showListBtn.addEventListener('click', () => {
+            showPage('list');
+        });
+
+        showFormBtn.addEventListener('click', () => {
+            showPage('form');
+        });
+
+    </script>
+</body>
+</html>
